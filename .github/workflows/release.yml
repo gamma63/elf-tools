@@ -43,27 +43,3 @@ jobs:
       with:
         name: x86_64-elf-tools
         path: ${{ github.workspace }}/build-x86_64-elf/*.zip
-
-  release:
-    runs-on: ubuntu-latest
-    needs: [i686, x86_64]
-
-    steps:
-    - uses: actions/download-artifact@v4.1.7
-      
-    - name: release
-      uses: softprops/action-gh-release@v2.0.6
-      with:
-        name: GCC ${{ inputs.gcc_version }}
-        tag_name: ${{ inputs.gcc_version }}
-        draft: true
-        files: '**/*.zip'
-        body: |
-          i686/x86_64-elf Win32/Linux binaries
-          -GCC ${{ inputs.gcc_version }}
-          -Binutils ${{ inputs.binutils_version }}
-          -GDB ${{ inputs.gdb_version }}
-          
-          * 🤖This modern version of elf-tools has automatically been built by GitHub Actions
-          * ⚠️It is completely untested, and merely provided for your convenience in the event that you would prefer to use a modern version of the toolchain
-          * 🚀Having said all this, the [original release](https://github.com/lordmilko/i686-elf-tools/releases/tag/7.1.0) of the toolchain has been thoroughly tested, and is generally recommended unless you specifically know that you need to use a newer version
