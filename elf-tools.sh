@@ -1,13 +1,13 @@
 #!/bin/bash
 
 # elf-tools.sh
-# v1.4.0
+# v1.4.1
 
 # Define Global Variables
 
 BINUTILS_VERSION=2.42
 GCC_VERSION=14.1.0
-GDB_VERSION=14.2
+GDB_VERSION=13.2
 
 BUILD_TARGET="i686-elf"
 
@@ -76,26 +76,26 @@ function main {
 
     installPackages
     installMXE
-    
+
     if [[ $ENV_ONLY == true ]]; then
         echoColor "Successfully installed build environment. Exiting as 'env' only was specified"
         return
     fi
-    
+
     downloadSources
-    
+
     if [[ $WINDOWS_ONLY == true ]]; then
         echoColor "Skipping compiling Linux as 'win' was specified in commandline args '$args'"
-    else    
+    else
         compileAll "linux"
     fi
-    
+
     if [[ $LINUX_ONLY == true ]]; then
         echoColor "Skipping compiling Windows as 'linux' was specified in commandline args '$args'"
-    else    
+    else
         compileAll "windows"
     fi
-        
+
     finalize
 }
 function installPackages {
@@ -176,46 +176,46 @@ function installMXE {
 function downloadSources {
     mkdir -p $BUILD_DIR
     cd $BUILD_DIR
-    
+
     echoColor "Downloading all sources"
-    
+
     if [[ $BUILD_BINUTILS == true || $ALL_PRODUCTS == true ]]; then
         downloadAndExtract "binutils" $BINUTILS_VERSION
     else
         echoColor "    Skipping binutils as 'binutils' was ommitted from commandline args '$args'"
     fi
-    
+
     if [[ $BUILD_GCC == true || $ALL_PRODUCTS == true ]]; then
         downloadAndExtract "gcc" $GCC_VERSION "http://ftp.gnu.org/gnu/gcc/gcc-$GCC_VERSION/gcc-$GCC_VERSION.tar.gz"
-        
+
         echoColor "        Downloading GCC prerequisites"
-        
+
         # Automatically download GMP, MPC and MPFR. These will be placed into the right directories.
         # You can also download these separately, and specify their locations as arguments to ./configure
-        
+
         if [[ $WINDOWS_ONLY != true ]]; then
             echoColor "            Linux"
             cd ./linux/gcc-$GCC_VERSION
             ./contrib/download_prerequisites
         fi
-        
+
         cd $BUILD_DIR
-        
+
         if [[ $LINUX_ONLY != true ]]; then
         echoColor "            Windows"
             cd ./windows/gcc-$GCC_VERSION
             ./contrib/download_prerequisites
         fi
-        
+
         cd $BUILD_DIR
     else
         echoColor "    Skipping gcc as 'gcc' was ommitted from commandline args '$args'"
     fi
-    
+
     if [[ $BUILD_GDB == true || $ALL_PRODUCTS == true ]]; then
         downloadAndExtract "gdb" $GDB_VERSION
     else
-       echoColor "    Skipping gdb as 'gdb' was ommitted from commandline args '$args'" 
+       echoColor "    Skipping gdb as 'gdb' was ommitted from commandline args '$args'"
     fi
 }
 
@@ -223,13 +223,13 @@ function downloadAndExtract {
     name=$1
     version=$2
     override=$3
-    
+
     echoColor "    Processing $name"
-    
+
     if [ ! -f $name-$version.tar.gz ]
     then
         echoColor "        Downloading $name-$version.tar.gz"
-        
+
         if [ -z $3 ]
         then
             wget -q http://ftp.gnu.org/gnu/$name/$name-$version.tar.gz
@@ -245,7 +245,7 @@ function downloadAndExtract {
     else
         mkdir -p linux
         cd linux
-        
+
         if [ ! -d $name-$version ]
         then
             echoColor "        [linux]   Extracting $name-$version.tar.gz"
@@ -253,24 +253,24 @@ function downloadAndExtract {
         else
             echoColor "        [linux]   Folder $name-$version already exists"
         fi
-        
+
         cd ..
     fi
-    
+
     if [[ $LINUX_ONLY == true ]]; then
         echoColor "        Skipping extracting Linux as 'win' was specified in commandline args '$args'"
     else
         mkdir -p windows
         cd windows
-        
+
         if [ ! -d $name-$version ]
         then
             echoColor "        [windows] Extracting $name-$version.tar.gz"
             tar -xf ../$name-$version.tar.gz
         else
-            echoColor "        [windows] Folder $name-$version already exists"        
+            echoColor "        [windows] Folder $name-$version already exists"
         fi
-        
+
         cd ..
     fi
 }
@@ -278,36 +278,36 @@ function downloadAndExtract {
 function compileAll {
 
     echoColor "Compiling all $1"
-    
+
     cd $1
-    
+
     mkdir -p output
 
     compileBinutils $1
     compileGCC $1
     compileGDB $1
-    
+
     cd ..
 }
 
-function compileBinutils {    
+function compileBinutils {
     if [[ $BUILD_BINUTILS == true || $ALL_PRODUCTS == true ]]; then
         echoColor "    Compiling binutils [$1]"
-    
+
         mkdir -p build-binutils-$BINUTILS_VERSION
         cd build-binutils-$BINUTILS_VERSION
-        
+
         configureArgs="--target=${BUILD_TARGET} --with-sysroot --disable-nls --disable-werror --prefix=$BUILD_DIR/$1/output"
-        
+
         if [ $1 == "windows" ]
         then
             configureArgs="--host=i686-w64-mingw32.static $configureArgs"
         fi
-        
+
         # Configure
         echoColor "        Configuring binutils (binutils_configure.log)"
         ../binutils-$BINUTILS_VERSION/configure $configureArgs >> binutils_configure.log
-        
+
         # Make
         echoColor "        Making (binutils_make.log)"
         if [[ $PARALLEL == true ]]; then
@@ -315,7 +315,7 @@ function compileBinutils {
         else
             make >> binutils_make.log
         fi
-        
+
         # Install
         echoColor "        Installing (binutils_install.log)"
         sudo make install >> binutils_install.log
@@ -327,34 +327,34 @@ function compileBinutils {
 
 function compileGCC {
     if [[ $BUILD_GCC == true || $ALL_PRODUCTS == true ]]; then
-    
+
         echoColor "    Compiling gcc [$1]"
 
         mkdir -p build-gcc-$GCC_VERSION
         cd build-gcc-$GCC_VERSION
-        
+
         configureArgs="--target=${BUILD_TARGET} --disable-nls --enable-languages=c,c++ --without-headers --prefix=$BUILD_DIR/$1/output"
-        
+
         if [ $1 == "windows" ]
         then
             configureArgs="--host=i686-w64-mingw32.static $configureArgs"
         fi
-        
+
         if [[ $x64 == true ]]; then
-        
+
             # https://wiki.osdev.org/Libgcc_without_red_zone#Preparations
-            
+
             echoColor "        Installing config/i386/t-x86_64-elf"
             echo -e "# Add libgcc multilib variant without red-zone requirement\n\nMULTILIB_OPTIONS += mno-red-zone\nMULTILIB_DIRNAMES += no-red-zone" > ../gcc-$GCC_VERSION/gcc/config/i386/t-x86_64-elf
-            
+
             echoColor "        Patching gcc/config.gcc"
             sed -i '/x86_64-\*-elf\*)/a \\ttmake_file="${tmake_file} i386/t-x86_64-elf" # include the new multilib configuration' ../gcc-$GCC_VERSION/gcc/config.gcc
         fi
-        
+
         # Configure
         echoColor "        Configuring gcc (gcc_configure.log)"
         ../gcc-$GCC_VERSION/configure $configureArgs >> gcc_configure.log
-        
+
         # Make GCC
         echoColor "        Making gcc (gcc_make.log)"
         if [[ $PARALLEL == true ]]; then
@@ -362,11 +362,11 @@ function compileGCC {
         else
             make all-gcc >> gcc_make.log
         fi
-        
+
         # Install GCC
         echoColor "        Installing gcc (gcc_install.log)"
         sudo make install-gcc >> gcc_install.log
-        
+
         # Make libgcc
         echoColor "        Making libgcc (libgcc_make.log)"
         if [[ $PARALLEL == true ]]; then
@@ -374,23 +374,23 @@ function compileGCC {
         else
             make all-target-libgcc >> libgcc_make.log
         fi
-        
+
         # Install libgcc
         echoColor "        Installing libgcc (libgcc_install.log)"
         sudo make install-target-libgcc >> libgcc_install.log
-                
+
         if [[ $x64 == true ]]; then
-        
+
             if [ $1 == "windows" ]
             then
                 # no-red-zone doesn't appear to get installed by make install-target-libgcc for some reason. Manually install it ourselves
-                
+
                 cd "${BUILD_TARGET}/no-red-zone/libgcc"
                 sudo make install >> ../../../libgcc_install_noredzone.log
-                
+
                 cd ../../..
             fi
-        
+
             if [[ ! -d "../output/lib/gcc/x86_64-elf/$GCC_VERSION/no-red-zone" ]]; then
                 echoError "ERROR: no-red-zone was not created. x64 patching failed"
                 exit 1
@@ -398,7 +398,7 @@ function compileGCC {
                 echoColor "            Successfully compiled for no-red-zone"
             fi
         fi
-        
+
         cd ..
     else
         echoColor "    Skipping gcc [$1] as 'gcc' was ommitted from commandline args '$args'"
@@ -409,21 +409,21 @@ function compileGDB {
     if [[ $BUILD_GDB == true || $ALL_PRODUCTS == true ]]; then
 
         echoColor "    Compiling gdb [$1]"
-    
+
         configureArgs="--target=${BUILD_TARGET} --disable-nls --disable-werror --prefix=$BUILD_DIR/$1/output"
-        
+
         if [ $1 == "windows" ]
         then
             configureArgs="--host=i686-w64-mingw32.static $configureArgs"
         fi
-    
+
         mkdir -p build-gdb-$GDB_VERSION
         cd build-gdb-$GDB_VERSION
-        
-        # Configure        
+
+        # Configure
         echoColor "        Configuring (gdb_configure.log)"
         ../gdb-$GDB_VERSION/configure $configureArgs >> gdb_configure.log
-        
+
         # Make
         echoColor "        Making (gdb_make.log)"
         if [[ $PARALLEL == true ]]; then
@@ -431,7 +431,7 @@ function compileGDB {
         else
             make >> gdb_make.log
         fi
-        
+
         # Install
         echoColor "        Installing (gdb_install.log)"
         sudo make install >> gdb_install.log
@@ -444,17 +444,17 @@ function compileGDB {
 function finalize {
     if [[ $ZIP == true || $ALL_PRODUCTS == true ]]; then
         echo "Zipping everything up!"
-        
+
         if [[ -d "$BUILD_DIR/windows/output" ]]; then
             cd $BUILD_DIR/windows/output
             zip -r "${BUILD_DIR}/${BUILD_TARGET}-tools-windows.zip" *
         fi
-        
+
         if [[ -d "$BUILD_DIR/linux/output" ]]; then
             cd $BUILD_DIR/linux/output
             zip -r "${BUILD_DIR}/${BUILD_TARGET}-tools-linux.zip" *
         fi
-        
+
         echo -e "\e[92mZipped everything to $BUILD_DIR/${BUILD_TARGET}-tools-[windows | linux].zip\e[39m"
     else
         echoColor "    Skipping zipping 'zip' was ommitted from commandline args '$args'"
